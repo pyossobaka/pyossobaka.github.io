@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Цифровые маргиналии — полный рандом цвета</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: crosshair;
+        }
+
+        body {
+            background: #0b0b0f;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #trail-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .text-copy {
+            position: absolute;
+            font-size: clamp(1.2rem, 4vw, 2.5rem);
+            font-weight: bold;
+            text-align: center;
+            line-height: 0.8;
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 2px 2px 0 #2c2c3a;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.5s ease;
+            opacity: 0.9;
+            pointer-events: none;
+            letter-spacing: 1px;
+            animation: fadeIn 0.2s;
+            /* цвет будет задаваться инлайн-стилем */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            to   { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .hint {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: #aaa;
+            font-size: 0.9rem;
+            background: rgba(20,20,30,0.6);
+            padding: 6px 12px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+            border: 1px solid #444;
+            z-index: 100;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="trail-container"></div>
+
+
+    <script>
+        (function() {
+            const container = document.getElementById('trail-container');
+            const htmlText = 'Цифровые маргиналии,<br>го на созвон в 18';
+            
+            const THROTTLE_MS = 100;
+            let lastCreation = 0;
+            let animationFramePending = false;
+            let pendingX = 0, pendingY = 0;
+
+            // Генерация случайного яркого цвета в формате HSL
+            function randomColor() {
+                const h = Math.random() * 360;           // любой оттенок
+                const s = 70 + Math.random() * 30;       // насыщенность 70–100%
+                const l = 60 + Math.random() * 30;        // яркость 60–90%
+                return `hsl(${h}, ${s}%, ${l}%)`;
+            }
+
+            function createCopy(x, y) {
+                const el = document.createElement('div');
+                el.className = 'text-copy';
+                el.innerHTML = htmlText;
+                el.style.left = x + 'px';
+                el.style.top = y + 'px';
+                
+                // Случайный поворот
+                const rotate = (Math.random() * 6 - 3).toFixed(1);
+                el.style.transform = `translate(-50%, -50%) rotate(${rotate}deg)`;
+                
+                // Полностью случайный цвет
+                el.style.color = randomColor();
+                // Тень делаем полупрозрачной версией того же цвета
+                el.style.textShadow = `0 0 8px ${el.style.color}, 0 0 15px currentColor, 2px 2px 0 #2c2c3a`;
+                
+                container.appendChild(el);
+
+                setTimeout(() => {
+                    if (el.parentNode) {
+                        el.style.opacity = '0';
+                        setTimeout(() => {
+                            if (el.parentNode) el.remove();
+                        }, 500);
+                    }
+                }, 2000);
+            }
+
+            function onMouseMove(e) {
+                const now = Date.now();
+                if (now - lastCreation < THROTTLE_MS) {
+                    pendingX = e.clientX;
+                    pendingY = e.clientY;
+                    if (!animationFramePending) {
+                        animationFramePending = true;
+                        requestAnimationFrame(() => {
+                            if (pendingX !== undefined && pendingY !== undefined) {
+                                if (Date.now() - lastCreation >= THROTTLE_MS) {
+                                    createCopy(pendingX, pendingY);
+                                    lastCreation = Date.now();
+                                }
+                            }
+                            animationFramePending = false;
+                            pendingX = pendingY = undefined;
+                        });
+                    }
+                    return;
+                }
+
+                createCopy(e.clientX, e.clientY);
+                lastCreation = now;
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+
+            function clearCopies() {
+                const copies = document.querySelectorAll('.text-copy');
+                copies.forEach(el => {
+                    el.style.opacity = '0';
+                    setTimeout(() => el.remove(), 400);
+                });
+            }
+
+            document.addEventListener('click', clearCopies);
+            document.getElementById('clearBtn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                clearCopies();
+            });
+
+            window.addEventListener('beforeunload', () => {
+                document.removeEventListener('mousemove', onMouseMove);
+            });
+        })();
+    </script>
+</body>
+</html>
